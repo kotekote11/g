@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="format-detection" content="telephone=no">
+<title>4_СС → Delta VFD-EL: DMX / мА / Гц</title>
+<style>
+  :root{
+    --bg:#eef2f7; --card:#fff; --line:#c9d6e5; --txt:#0f2038; --muted:#5b7290;
+    --accent:#1668c1; --accent2:#e8f1fb; --ok:#1a7f4b; --warn:#b45309; --hero:#0e2a4d;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1621; --card:#151f2e; --line:#2b3b52; --txt:#e8eef7; --muted:#93a6bf;
+           --accent:#4d9bff; --accent2:#1c2c44; --ok:#4ecb8d; --warn:#f0a05a; --hero:#0b1a2c; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);
+    font:16px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding:14px 12px 30px}
+  .wrap{max-width:560px;margin:0 auto}
+  h1{font-size:19px;margin:2px 0 4px}
+  h2{font-size:14px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .sub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+        box-shadow:0 2px 10px rgba(15,32,56,.06);margin-bottom:12px}
+  .pad{padding:12px}
+  /* приоритетные ячейки */
+  .hero{display:flex;gap:10px;margin-bottom:12px}
+  .big{flex:1;background:var(--hero);color:#fff;border-radius:14px;padding:11px 12px 12px;position:relative}
+  .big .lab{font-size:11.5px;opacity:.82;letter-spacing:.3px}
+  .big .num{font:700 34px/1.1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:4px 0 8px}
+  .big .neu{font:600 13px/1 inherit}
+  .big.alt{background:var(--accent)}
+  .cp{border:0;border-radius:8px;background:rgba(255,255,255,.16);color:#fff;
+      font:600 12px/1 inherit;padding:8px 10px;width:100%}
+  .cp:active{background:rgba(255,255,255,.3)}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:var(--accent);color:#fff;font-size:11.5px;font-weight:600;text-align:left;
+           padding:8px 10px;letter-spacing:.3px;text-transform:uppercase}
+  thead th:nth-child(2){text-align:right}
+  tbody td{padding:0;border-top:1px solid var(--line)}
+  tbody th{font-size:15px;font-weight:600;text-align:left;padding:11px;white-space:nowrap;width:40%}
+  tbody th span{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px}
+  td.val{width:1%}
+  input{width:100%;min-width:104px;border:0;outline:0;background:var(--accent2);color:var(--txt);
+        font:600 19px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-align:right;
+        padding:12px 10px;border-radius:0}
+  input:focus{background:var(--card);box-shadow:inset 0 0 0 2px var(--accent)}
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input[type=number]{-moz-appearance:textfield}
+  td.unit{font-size:12px;color:var(--muted);padding:0 11px;white-space:nowrap;width:1%}
+  /* каналы */
+  .ch th{font-size:13px;padding:9px 8px;width:auto}
+  .ch td{border-top:1px solid var(--line);padding:6px 8px;vertical-align:middle}
+  .ch input[type=range]{width:100%;min-width:70px;height:28px;background:transparent;
+                        accent-color:var(--accent);padding:0}
+  .ch .n{width:74px;min-width:74px;text-align:right;font-size:16px;padding:9px 8px;background:var(--accent2)}
+  .ch .o{font:600 13px/1.2 ui-monospace,Menlo,Consolas,monospace;white-space:nowrap;color:var(--txt)}
+  .ch .o small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+  .row{display:flex;gap:8px;margin:10px 0 0;flex-wrap:wrap}
+  button.b{flex:1 1 0;min-width:58px;font:600 13px/1 inherit;color:var(--accent);background:var(--card);
+           border:1px solid var(--line);border-radius:10px;padding:11px 6px}
+  button.b:active{background:var(--accent2)}
+  .info{margin:0 0 12px;font-size:12.5px;color:var(--muted);background:var(--card);
+        border:1px solid var(--line);border-radius:12px;padding:10px 12px;line-height:1.6}
+  .info b{color:var(--txt)}
+  .warn{color:var(--warn);font-weight:600}
+  .tog{display:block;width:100%;text-align:left;cursor:pointer;font:600 13px/1 inherit;color:var(--accent);
+       padding:13px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin:0 0 8px}
+  .tog:active{background:var(--accent2)}
+  .box{display:none}
+  .box.on{display:block}
+  table.mini{font-size:13px}
+  table.mini th{background:transparent;color:var(--muted);font-size:11px;padding:6px 10px;text-transform:none}
+  table.mini td{padding:6px 10px;border-top:1px solid var(--line);font:600 13px/1.2 ui-monospace,Menlo,monospace}
+  table.mini td.k{color:var(--accent)}
+  input[type=range]{width:100%;height:30px;background:transparent;accent-color:var(--accent);padding:0}
+  .pn{width:100%;min-width:70px;font-size:14px;padding:8px;border-radius:8px;background:var(--accent2)}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .note code{background:var(--accent2);border-radius:5px;padding:1px 5px;font-size:12px}
+  .set{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .set label{flex:1;font-size:13px}
+  .set input{max-width:110px;min-width:90px;font-size:16px;padding:9px 10px;border-radius:10px;background:var(--accent2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>4_СС → Delta VFD-EL</h1>
+  <p class="sub">DMX 0–255 → 4 выхода 0–20 мА → 4…20 мА = Pr.02…Pr.01 частоты</p>
+
+  <!-- ПРИОРИТЕТНЫЕ ЗНАЧЕНИЯ (как в DMX_Piano) -->
+  <div class="hero">
+    <div class="big">
+      <div class="lab">DMX (DMX_Piano)</div>
+      <div class="num" id="bigDmx">153</div>
+      <button class="cp" id="cpDmx">Копировать DMX</button>
+    </div>
+    <div class="big alt">
+      <div class="lab">Частота (целое), Гц</div>
+      <div class="num" id="bigHz">25</div>
+      <div class="neu" id="bigMax"></div>
+      <button class="cp" id="cpHz">Копировать Гц</button>
+    </div>
+  </div>
+
+  <p class="info" id="info"></p>
+
+  <!-- ОСНОВНАЯ ТАБЛИЦА -->
+  <div class="card">
+    <table>
+      <thead><tr><th>Величина</th><th>Значение</th><th></th></tr></thead>
+      <tbody>
+        <tr><th>DMX<span>0 … 255 · весь диапазон 0…20 мА</span></th>
+            <td class="val"><input id="dmx" type="number" inputmode="numeric" step="1" min="0" max="255" autocomplete="off"></td>
+            <td class="unit">ед.</td></tr>
+        <tr><th>Ток<span>0 … 20 мА · выход 4_СС</span></th>
+            <td class="val"><input id="ma" type="number" inputmode="decimal" step="0.01" min="0" max="20" autocomplete="off"></td>
+            <td class="unit">мА</td></tr>
+        <tr><th>Частота<span>целое, Гц · 0 Гц от DMX 51</span></th>
+            <td class="val"><input id="hz" type="number" inputmode="numeric" step="1" autocomplete="off"></td>
+            <td class="unit">Гц</td></tr>
+        <tr><th>Проценты<span>0 … 100 · участок 4…20 мА</span></th>
+            <td class="val"><input id="pct" type="number" inputmode="decimal" step="0.1" min="0" max="100" autocomplete="off"></td>
+            <td class="unit">%</td></tr>
+      </tbody>
+    </table>
+    <div class="pad">
+      <div class="row">
+        <button class="b" data-dmx="0">DMX 0</button>
+        <button class="b" data-dmx="51">51</button>
+        <button class="b" data-dmx="102">102</button>
+        <button class="b" data-dmx="128">128</button>
+        <button class="b" data-dmx="153">153</button>
+        <button class="b" data-dmx="204">204</button>
+        <button class="b" data-dmx="255">255</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pr.4.18 -->
+  <div class="card"><div class="pad">
+    <h2>Pr.4.18 — лимит максимума, %</h2>
+    <div class="set"><label>Значение параметра 4.18, %</label>
+      <input type="number" id="k418" min="1" max="100" step="0.1" inputmode="decimal" autocomplete="off"></div>
+    <input type="range" id="k418r" min="1" max="100" step="0.1">
+    <div class="row">
+      <button class="b" data-k="100">100 %</button>
+      <button class="b" data-k="90">90 %</button>
+      <button class="b" data-k="80">80 %</button>
+      <button class="b" data-k="70">70 %</button>
+      <button class="b" data-k="60">60 %</button>
+      <button class="b" data-k="50">50 %</button>
+    </div>
+    <p class="note" id="kInfo"></p>
+  </div></div>
+
+  <!-- высота струи -->
+  <div class="card"><div class="pad">
+    <h2>Высота струи · мастер-план</h2>
+    <div class="set"><label>Высота струи при 4.18 = 100 %, м</label>
+      <input type="number" id="h100" step="0.01" inputmode="decimal" autocomplete="off"></div>
+    <div class="set"><label>Цель по мастер-плану, м</label>
+      <input type="number" id="hgoal" step="0.01" inputmode="decimal" autocomplete="off"></div>
+    <div class="set"><label>Текущий 4.18, % (проверка)</label>
+      <input type="number" id="kcur" step="0.1" min="1" max="100" inputmode="decimal" autocomplete="off"></div>
+    <p class="note" id="hInfo"></p>
+    <div class="row"><button class="b" id="applyK">Применить расчётный 4.18</button></div>
+    <table class="mini"><thead><tr><th>H, м (план)</th><th>4.18, %</th><th>Макс. Гц</th></tr></thead>
+      <tbody id="planTab"></tbody></table>
+  </div></div>
+
+  <!-- 4 КАНАЛА -->
+  <div class="card">
+    <div class="pad"><h2>4 канала контроллера 4_СС</h2></div>
+    <table class="ch">
+      <thead><tr><th>Канал</th><th>DMX</th><th>ед.</th><th>Гц / мА</th></tr></thead>
+      <tbody>
+        <tr><td>OUT1</td><td><input type="range" id="cr0" min="0" max="255" step="1"><div class="o" id="co0"></div></td>
+            <td><input class="n" type="number" id="cn0" min="0" max="255" step="1" autocomplete="off"></td>
+            <td class="o" id="cx0"></td></tr>
+        <tr><td>OUT2</td><td><input type="range" id="cr1" min="0" max="255" step="1"><div class="o" id="co1"></div></td>
+            <td><input class="n" type="number" id="cn1" min="0" max="255" step="1" autocomplete="off"></td>
+            <td class="o" id="cx1"></td></tr>
+        <tr><td>OUT3</td><td><input type="range" id="cr2" min="0" max="255" step="1"><div class="o" id="co2"></div></td>
+            <td><input class="n" type="number" id="cn2" min="0" max="255" step="1" autocomplete="off"></td>
+            <td class="o" id="cx2"></td></tr>
+        <tr><td>OUT4</td><td><input type="range" id="cr3" min="0" max="255" step="1"><div class="o" id="co3"></div></td>
+            <td><input class="n" type="number" id="cn3" min="0" max="255" step="1" autocomplete="off"></td>
+            <td class="o" id="cx3"></td></tr>
+      </tbody>
+    </table>
+    <div class="pad">
+      <div class="row">
+        <button class="b" id="fillAll">Все каналы = текущий DMX</button>
+        <button class="b" id="fillZero">Все = 4 мА (0 %)</button>
+        <button class="b" id="cpRep">Скопировать сводку</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ШПАРГАЛКА -->
+  <button class="tog" id="togCheat" type="button" data-label="Шпаргалка DMX → мА → Гц (шаг 10)">▾ Шпаргалка DMX → мА → Гц (шаг 10)</button>
+  <div class="card box on" id="boxCheat">
+    <table class="mini"><thead>
+      <tr><th>DMX</th><th>мА</th><th>Гц</th><th>%</th><th>H, %</th></tr></thead>
+      <tbody id="cheat"></tbody></table>
+  </div>
+
+  <!-- НАСТРОЙКИ -->
+  <button class="tog" id="togSet" type="button" data-label="Настройки преобразователя и примечания">▾ Настройки преобразователя и примечания</button>
+  <div class="card box on" id="boxSet"><div class="pad">
+      <div class="set"><label>Pr.01 — макс. частота, Гц</label>
+        <input type="number" id="fmax" min="1" max="400" step="0.01" inputmode="decimal" autocomplete="off"></div>
+      <div class="set"><label>Pr.02 — мин. частота, Гц</label>
+        <input type="number" id="fmin" min="0" max="400" step="0.01" inputmode="decimal" autocomplete="off"></div>
+      <p class="note" id="acc"></p>
+      <p class="note">
+        <b>Как пользоваться.</b> Вводите значение в любое поле — остальные пересчитываются мгновенно.
+        Для программистов ключевые значения вынесены наверх: <code>DMX</code> (для DMX_Piano) и <code>Гц</code>.<br>
+        <b>Привязка.</b> DMX охватывает весь токовый диапазон:
+        <code>DMX = ROUND(255 · I / 20)</code> (0 мА → 0, 20 мА → 255).
+        Проценты — участок 4…20 мА: <code>P = (I − 4)/16</code>, <code>% = 100·P</code>.<br>
+        <b>Частота</b> считается прямо из DMX:
+        <code>Гц = ROUND(Pr.02 + (Pr.01 − Pr.02)·(DMX − 51)/204)</code>,
+        то есть DMX 51 (4 мА) → 0 Гц, DMX 255 (20 мА) → Pr.01.
+        При Pr.01 = 50 Гц и Pr.02 = 0 это ваша формула <code>ROUND(DMX·0,245098039 − 12,5)</code>:
+        1 ед. DMX ≈ 0,245 Гц, 1 Гц ≈ 4,08 ед. DMX.
+        Значение частоты целое (как в DMX_Piano), ниже строки показано точное значение по шкале.<br>
+        <b>Ниже 4 мА</b> (DMX меньше 51) частота равна Pr.02, проценты = 0, DMX продолжает уменьшаться до 0.<br>
+        <b>Точность.</b> 1 ед. DMX = 20/255 = 0,0784 мА = 0,245 Гц (при 50 Гц макс.).
+        Дискретность выхода 4_СС (12 бит) — около 0,005 мА, то есть ток задаётся точнее, чем шаг DMX.<br>
+        <b>Подключение.</b> Выход 4_СС (0–20 мА) → аналоговый вход VFD-EL в режиме токового сигнала (ACI);
+        при 4…20 мА рабочий участок 0…100 % частоты, при токе ниже 4 мА преобразователь держит минимальную частоту.<br>
+        <b>Pr.4.18 (лимит максимума).</b> Параметр занижает верхнюю частоту: <code>f_макс = Pr.01 · 4.18 %</code>.
+        Шкала DMX остаётся линейной, но точка DMX 255 (20 мА) даёт уже не 50 Гц, а <code>Pr.01 · 4.18 %</code>;
+        значения 4.18 % и DMX при этом не меняются — меняется только цена одного шага.<br>
+        <b>Высота струи.</b> Для лопастных насосов высота примерно пропорциональна квадрату частоты:
+        <code>H₂ ≈ H₁·(f₂/f₁)²</code>, поэтому <code>4.18 % = 100·√(H_цель / H_при_100 %)</code>.
+        Пример: при 4.18 = 100 % струя 12 м, цель 6 м → √(6/12) = 0,71 → 4.18 ≈ 70,7 %, максимум 35,4 Гц.
+        Зависимость приближённая: меняйте параметр шагами, после каждого шага замеряйте высоту линейкой
+        и уточняйте 4.18; следите за током двигателя и не превышайте паспортных значений.
+      </p>
+    </div></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var F = {};                       // поля
+  ['dmx','ma','hz','pct','fmax','fmin','info','cheat','bigDmx','bigHz','bigMax','k418','k418r',
+   'kInfo','h100','hgoal','kcur','hInfo','planTab'].forEach(function(k){
+    F[k] = document.getElementById(k);
+  });
+  var keys = ['dmx','ma','hz','pct'];
+  var lim  = { dmx:[0,255], ma:[0,20], hz:null, pct:[0,100] };
+  var dec  = { dmx:0, ma:3, hz:0, pct:2 };
+
+  var I = 12;            // текущий ток, мА
+  var Fmax = 50;         // Pr.01 — макс. частота при 4.18 = 100 %
+  var Fmin = 0;          // Pr.02 — мин. частота
+  var k418 = 100;        // Pr.4.18 — лимит максимума, %
+  var H100 = 0;          // высота струи при 4.18 = 100 %, м
+  var Hgoal = 0;         // цель по мастер-плану, м
+  var kcur = 100;        // текущий 4.18 для оценки фактической высоты
+  var plan = [0, 0, 0, 0, 0];
+  var ch = [128,128,128,128];
+
+  function clamp(x,a,b){ return x<a?a:(x>b?b:x); }
+  function f(x,d){ return (isFinite(x) ? x : 0).toFixed(d); }
+  function P4(i){ return clamp((i-4)/16,0,1); }         // доля участка 4…20 мА
+  function P0(i){ return clamp(i/20,0,1); }             // доля диапазона 0…20 мА
+  function dmxOf(i){ return Math.round(255*P0(i)); }
+  function maFromDmx(d){ return 20*d/255; }
+  // рабочий максимум частоты с учётом Pr.4.18: f_top = Pr.01 * 4.18 %
+  function fTop(){ var x = Fmax*k418/100; return x < Fmin ? Fmin : x; }
+  // частота прямо из DMX: Гц = ROUND(Pr.02 + (f_top - Pr.02)*(DMX - 51)/204)
+  // при Pr.01 = 50 Гц, Pr.02 = 0 и 4.18 = 100 % это ROUND(DMX*0.245098039 - 12.5)
+  function hzOfDmx(d){ var x = fTop(); return clamp(Math.round(Fmin + (x-Fmin)*(d-51)/204), 0, (x < Fmin ? Fmin : x)); }
+  function hzOf(i){ return hzOfDmx(dmxOf(i)); }
+  function hzExact(d){ var x = fTop(); return Fmin + (x-Fmin)*(d-51)/204; }
+  function dmxOfHz(h){ var s = fTop()-Fmin; return s <= 0.01 ? 51 : clamp(Math.round(51 + 204*(h-Fmin)/s), 0, 255); }
+  // высота струи ~ квадрату частоты (законы подобия): H = H100*(4.18/100)^2
+  function hRel418(k){ return (k/100)*(k/100); }
+  function kForHeight(H){ return (H100 > 0 && H > 0) ? clamp(100*Math.sqrt(H/H100), 1, 100) : 100; }
+  function hRelDmx(d){ var q = (d-51)/204; if (q < 0) q = 0; return q*q; }
+
+  function values(i){
+    return { dmx: String(dmxOf(i)), ma: f(i,3), hz: f(hzOf(i),0), pct: f(100*P4(i),2) };
+  }
+  function toCurrent(src, v){
+    if (src === 'ma')  return clamp(v, 0, 20);
+    if (src === 'dmx') return maFromDmx(clamp(Math.round(v), 0, 255));
+    if (src === 'pct') return 4 + 16*clamp(v, 0, 100)/100;
+    return maFromDmx(dmxOfHz(v));                                          // hz -> DMX -> мА
+  }
+
+  // ---------- отрисовка ----------
+  function render(src){
+    var v = values(I);
+    keys.forEach(function(k){ if (k !== src) F[k].value = v[k]; });
+    F.bigDmx.textContent = v.dmx;
+    F.bigHz.textContent  = v.hz;
+    F.bigMax.textContent = 'макс. ' + f(fTop(),2) + ' Гц · 4.18 = ' + f(k418,1) + ' %';
+    var p4 = P4(I), p0 = P0(I);
+    var warn = '';
+    if (I < 4) warn = ' <span class="warn">ток ниже 4 мА — частота = Pr.02, проценты = 0</span>';
+    F.info.innerHTML =
+      'Ток <b>' + v.ma + '</b> мА &nbsp;·&nbsp; DMX <b>' + v.dmx + '</b> &nbsp;·&nbsp; <b>' + v.hz +
+      '</b> Гц &nbsp;·&nbsp; <b>' + v.pct + '</b> %<br>' +
+      'шаг DMX: <b>' + f(20/255,3) + '</b> мА = <b>' + f((Fmax-Fmin)/204,3) + '</b> Гц &nbsp;·&nbsp; ' +
+      'точно по шкале: <b>' + f(hzExact(dmxOf(I)),2) + '</b> Гц &nbsp;·&nbsp; ' +
+      'доля 4…20 мА: ' + p4.toFixed(4) + ' · доля 0…20 мА: ' + p0.toFixed(4) + warn;
+    updHeights();
+    save();
+  }
+
+  function setFrom(src, normalize){
+    var raw = String(F[src].value).replace(',', '.').trim();
+    if (raw === '' || raw === '-' || raw === '.' || raw === '-.'){ F.info.textContent = 'Введите значение…'; return; }
+    var v = parseFloat(raw);
+    if (!isFinite(v)) return;
+    var c = v;
+    if (lim[src]) c = clamp(v, lim[src][0], lim[src][1]);
+    else c = clamp(v, Fmin, Fmax);                       // частота
+    I = toCurrent(src, c);
+    if (normalize) F[src].value = values(I)[src];
+    render(src);
+  }
+
+  keys.forEach(function(k){
+    F[k].addEventListener('input',  function(){ setFrom(k, false); });
+    F[k].addEventListener('change', function(){ setFrom(k, true);  });
+    F[k].addEventListener('blur',   function(){ setFrom(k, true);  });
+    F[k].addEventListener('focus',  function(){ F[k].select(); });
+  });
+
+  // ---------- каналы ----------
+  function updCh(k){
+    var i = maFromDmx(ch[k]);
+    document.getElementById('co'+k).textContent = 'DMX ' + ch[k];
+    document.getElementById('cx'+k).innerHTML = '<b>' + f(hzOf(i),0) + ' Гц</b><small>' + f(i,3) + ' мА</small>';
+  }
+  function setCh(k, v, updateNum){
+    ch[k] = clamp(Math.round(v || 0), 0, 255);
+    document.getElementById('cr'+k).value = ch[k];
+    if (updateNum) document.getElementById('cn'+k).value = ch[k];
+    updCh(k); save();
+  }
+  [0,1,2,3].forEach(function(k){
+    document.getElementById('cr'+k).addEventListener('input', function(){ setCh(k, this.value, true); });
+    document.getElementById('cn'+k).addEventListener('input', function(){ setCh(k, this.value, false); });
+    document.getElementById('cn'+k).addEventListener('change', function(){ setCh(k, this.value, true); });
+    document.getElementById('cn'+k).addEventListener('blur',   function(){ setCh(k, this.value, true); });
+  });
+  document.getElementById('fillAll').addEventListener('click', function(){
+    var d = dmxOf(I);
+    [0,1,2,3].forEach(function(k){ setCh(k, d, true); });
+  });
+  document.getElementById('fillZero').addEventListener('click', function(){
+    var d = dmxOf(4);
+    [0,1,2,3].forEach(function(k){ setCh(k, d, true); });
+  });
+
+  // ---------- пресеты DMX ----------
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-dmx]'), function(b){
+    b.addEventListener('click', function(){
+      var d = parseInt(b.getAttribute('data-dmx'), 10);
+      F.dmx.value = d;
+      I = toCurrent('dmx', d);
+      render('dmx');
+    });
+  });
+
+  // ---------- копирование ----------
+  function copy(text, btn, label){
+    var done = function(){ btn.textContent = '✓ Скопировано'; setTimeout(function(){ btn.textContent = label; }, 1200); };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, function(){ legacy(text, done); });
+    } else legacy(text, done);
+  }
+  function legacy(text, done){
+    var t = document.createElement('textarea');
+    t.value = text; t.setAttribute('readonly','');
+    t.style.position = 'fixed'; t.style.top = '-1000px';
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); done(); } catch(e){}
+    document.body.removeChild(t);
+  }
+  document.getElementById('cpDmx').addEventListener('click', function(){ copy(F.bigDmx.textContent, this, 'Копировать DMX'); });
+  document.getElementById('cpHz').addEventListener('click',  function(){ copy(F.bigHz.textContent,  this, 'Копировать Гц');  });
+
+  // ---------- настройки Pr.01 / Pr.02 ----------
+  function readSettings(){
+    var a = parseFloat(String(F.fmax.value).replace(',', '.'));
+    var b = parseFloat(String(F.fmin.value).replace(',', '.'));
+    if (isFinite(a) && a > 0) Fmax = a;
+    if (isFinite(b) && b >= 0 && b < Fmax) Fmin = b;
+    F.fmax.value = Fmax; F.fmin.value = Fmin;
+    F.hz.min = Fmin; F.hz.max = Fmax;
+    var span = (Fmax-Fmin) <= 0 ? 1 : (Fmax-Fmin);
+    F.acc.textContent = 'Дискретность: 1 ед. DMX = ' + f(20/255,3) + ' мА = ' + f(span/204,3) +
+      ' Гц;  1 Гц = ' + f(204/span,2) + ' ед. DMX;  1 % = ' + f(span/100,3) +
+      ' Гц;  шкала: DMX 51 = ' + f(Fmin,2) + ' Гц, DMX 255 = ' + f(Fmax,2) + ' Гц.';
+    buildCheat();
+  }
+  ['fmax','fmin'].forEach(function(k){
+    F[k].addEventListener('change', function(){ readSettings(); render(null); });
+    F[k].addEventListener('blur',   function(){ readSettings(); render(null); });
+  });
+
+  // ---------- шпаргалка ----------
+  function buildCheat(){
+    var rows = '', d;
+    for (d = 0; d <= 250; d += 10) rows += row(d);
+    rows += row(255);
+    F.cheat.innerHTML = rows;
+    function row(dd){
+      var i = maFromDmx(dd);
+      return '<tr><td class="k">' + dd + '</td><td>' + f(i,3) + '</td><td>' + f(hzOf(i),0) +
+             '</td><td>' + f(100*P4(i),2) + '</td><td>' + f(100*hRelDmx(dd),0) + '</td></tr>';
+    }
+  }
+
+  // ---------- сохранение состояния ----------
+  function save(){
+    try {
+      localStorage.setItem('k4cc', JSON.stringify({ I:I, Fmax:Fmax, Fmin:Fmin, k418:k418, H100:H100,
+        Hgoal:Hgoal, kcur:kcur, plan:plan, ch:ch }));
+    } catch(e){}
+  }
+  function load(){
+    try {
+      var s = JSON.parse(localStorage.getItem('k4cc') || 'null');
+      if (s){
+        if (typeof s.I === 'number') I = clamp(s.I, 0, 20);
+        if (typeof s.Fmax === 'number' && s.Fmax > 0) Fmax = s.Fmax;
+        if (typeof s.Fmin === 'number' && s.Fmin >= 0 && s.Fmin < Fmax) Fmin = s.Fmin;
+        if (typeof s.k418 === 'number') k418 = clamp(s.k418, 1, 100);
+        if (typeof s.H100 === 'number' && s.H100 > 0) H100 = s.H100;
+        if (typeof s.Hgoal === 'number' && s.Hgoal > 0) Hgoal = s.Hgoal;
+        if (typeof s.kcur === 'number' && s.kcur > 0) kcur = clamp(s.kcur, 1, 100);
+        if (s.plan && s.plan.length === 5) plan = s.plan.map(function(x){ return x > 0 ? x : 0; });
+        if (s.ch && s.ch.length === 4) ch = s.ch.map(function(x){ return clamp(Math.round(x||0), 0, 255); });
+      }
+    } catch(e){}
+  }
+
+  // ---------- старт ----------
+  // ---------- Pr.4.18: лимит максимума ----------
+  function setK418(v, normalize){
+    var x = parseFloat(String(v).replace(',', '.'));
+    if (!isFinite(x)) x = k418;
+    k418 = clamp(x, 1, 100);
+    F.k418.value = f(k418, 1);
+    F.k418r.value = k418;
+    render(null);
+  }
+  F.k418.addEventListener('change', function(){ setK418(this.value, true); });
+  F.k418.addEventListener('blur',   function(){ setK418(this.value, true); });
+  F.k418r.addEventListener('input', function(){ setK418(this.value, false); });
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-k]'), function(b){
+    b.addEventListener('click', function(){ setK418(b.getAttribute('data-k'), true); });
+  });
+
+  // ---------- высота струи и мастер-план ----------
+  function updHeights(){
+    var ft = fTop();
+    F.kInfo.innerHTML = 'При 4.18 = <b>' + f(k418,1) + ' %</b> максимум частоты = <b>' + f(ft,2) +
+      '</b> Гц: DMX 51 ↔ 0 Гц, DMX 255 ↔ 20 мА ↔ ' + f(ft,2) + ' Гц. ' +
+      'Ожидаемая высота струи относительно 100 % — <b>' + f(100*hRel418(k418),0) + ' %</b> (H ~ f²).';
+    var txt;
+    if (H100 > 0 && Hgoal > 0){
+      var req = kForHeight(Hgoal);
+      txt = 'Цель ' + f(Hgoal,2) + ' м: требуется <b>4.18 = ' + f(req,1) + ' %</b>, максимум частоты станет ' +
+            f(Fmax*req/100,2) + ' Гц. Частота снижается в ' + f(100/req,2) + ' раза, высота — в ' +
+            f(10000/(req*req),2) + ' раза.';
+    } else {
+      txt = 'Введите высоту струи при 4.18 = 100 % и цель по мастер-плану — получите нужное значение 4.18.';
+    }
+    if (H100 > 0) txt += ' При текущем 4.18 = ' + f(kcur,1) + ' % ожидаемая высота = <b>' +
+                         f(H100*hRel418(kcur),2) + ' м</b>.';
+    F.hInfo.innerHTML = txt;
+    var html = '';
+    for (var i = 0; i < plan.length; i++){
+      var h = plan[i], k = kForHeight(h), ok = (h > 0 && H100 > 0);
+      html += '<tr><td><input class="pn" type="number" step="0.01" inputmode="decimal" id="ph' + i +
+              '" value="' + (h > 0 ? h : '') + '"></td><td class="k">' + (ok ? f(k,1) + ' %' : '—') +
+              '</td><td>' + (ok ? f(Fmax*k/100,2) + ' Гц' : '—') + '</td></tr>';
+    }
+    F.planTab.innerHTML = html;
+    for (var j = 0; j < plan.length; j++){
+      (function(jj){
+        var inp = document.getElementById('ph' + jj);
+        if (inp) inp.addEventListener('change', function(){
+          plan[jj] = parseFloat(String(this.value).replace(',', '.')) || 0;
+          save(); updHeights();
+        });
+      })(j);
+    }
+  }
+  function readHeights(){
+    var a = parseFloat(String(F.h100.value).replace(',', '.'));
+    var b = parseFloat(String(F.hgoal.value).replace(',', '.'));
+    var c = parseFloat(String(F.kcur.value).replace(',', '.'));
+    if (isFinite(a) && a > 0) H100 = a;
+    if (isFinite(b) && b > 0) Hgoal = b;
+    if (isFinite(c) && c > 0) kcur = clamp(c, 1, 100);
+    F.h100.value  = H100 > 0 ? H100 : '';
+    F.hgoal.value = Hgoal > 0 ? Hgoal : '';
+    F.kcur.value  = f(kcur, 1);
+    updHeights(); save();
+  }
+  ['h100','hgoal','kcur'].forEach(function(k){
+    F[k].addEventListener('change', readHeights);
+    F[k].addEventListener('blur', readHeights);
+  });
+  document.getElementById('applyK').addEventListener('click', function(){
+    if (H100 > 0 && Hgoal > 0) setK418(f(kForHeight(Hgoal), 1), true);
+  });
+
+  // ---------- сводка для отчёта ----------
+  document.getElementById('cpRep').addEventListener('click', function(){
+    var v = values(I), t = [];
+    t.push('4_СС -> VFD-EL   Pr.01 = ' + f(Fmax,2) + ' Гц, Pr.02 = ' + f(Fmin,2) +
+           ' Гц, Pr.4.18 = ' + f(k418,1) + ' % (макс. ' + f(fTop(),2) + ' Гц)');
+    t.push('Ключевое: DMX ' + v.dmx + ' -> ' + v.ma + ' мА -> ' + v.hz + ' Гц -> ' + v.pct + ' %');
+    for (var k = 0; k < 4; k++){
+      var i2 = maFromDmx(ch[k]);
+      t.push('OUT' + (k+1) + ': DMX ' + ch[k] + ' -> ' + f(i2,3) + ' мА -> ' + f(hzOf(i2),0) + ' Гц (' +
+             f(100*P4(i2),2) + ' %), высота ~' + f(100*hRelDmx(ch[k]),0) + ' %');
+    }
+    if (H100 > 0 && Hgoal > 0) t.push('Высота: ' + f(H100,2) + ' м при 100 % -> цель ' +
+      f(Hgoal,2) + ' м: 4.18 = ' + f(kForHeight(Hgoal),1) + ' %');
+    copy(t.join('\n'), this, 'Скопировать сводку');
+  });
+
+  // ---------- копирование ----------
+  // ---------- сворачивание блоков (без <details>: надёжнее на телефоне) ----------
+  function wireToggle(btnId, boxId){
+    var b = document.getElementById(btnId), x = document.getElementById(boxId);
+    if (!b || !x) return;
+    b.addEventListener('click', function(){
+      var open = x.className.indexOf('on') >= 0;
+      x.className = open ? 'card box' : 'card box on';
+      b.textContent = (open ? '▸ ' : '▾ ') + b.getAttribute('data-label');
+    });
+  }
+  wireToggle('togCheat', 'boxCheat');
+  wireToggle('togSet', 'boxSet');
+
+  // ---------- старт ----------
+  load();
+  F.fmax.value = Fmax; F.fmin.value = Fmin;
+  F.k418.value = f(k418,1); F.k418r.value = k418;
+  F.h100.value  = H100 > 0 ? H100 : '';
+  F.hgoal.value = Hgoal > 0 ? Hgoal : '';
+  F.kcur.value  = f(kcur,1);
+  readSettings();
+  [0,1,2,3].forEach(function(k){ setCh(k, ch[k], true); });
+  F.dmx.value = String(dmxOf(I));
+  F.ma.value  = f(I,3);
+  F.hz.value  = f(hzOf(I),2);
+  F.pct.value = f(100*P4(I),2);
+  render(null);
+})();
+</script>
+</body>
+</html>
